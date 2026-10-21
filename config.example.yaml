@@ -1,0 +1,43 @@
+upstream:
+  # Primary provider. Its model is used as-is from the client request.
+  - name: openai
+    base_url: "https://api.openai.com/v1"
+    api_key: "sk-..."
+    model: "gpt-4o-mini"          # used only for fallback model swap; primary uses client's model field
+
+  # Fallback providers — tried in order when primary returns 5xx or circuit is open.
+  # model here is what gets substituted into the request body when falling back.
+  - name: anthropic
+    base_url: "https://api.anthropic.com/v1"
+    api_key: "sk-ant-..."
+    model: "claude-haiku-4-5"
+
+  - name: gemini
+    base_url: "https://generativelanguage.googleapis.com/v1beta/openai"
+    api_key: "AIza..."
+    model: "gemini-2.5-flash-lite"
+
+teams:
+  # Each team gets a separate bearer token. Store only the SHA-256 hash here.
+  # Generate: echo -n "your-bearer-token" | sha256sum
+  - name: team-a
+    key_hash: "abc123..."
+    email: "team-a-oncall@yourcompany.com"
+    rpm_limit: 100                # requests per minute
+
+  - name: team-b
+    key_hash: "def456..."
+    email: "team-b-oncall@yourcompany.com"
+    rpm_limit: 200
+
+redis:
+  host: "localhost"
+  port: 6379
+  password: ""                    # set if your Redis requires auth
+
+embedding:
+  base_url: "https://api.openai.com/v1/embeddings"
+  api_key: "sk-..."
+  model: "text-embedding-3-small"
+  similarity_threshold: 0.85      # 0.0–1.0; higher = stricter cache match
+  ttl_seconds: 86400              # cache entries expire after this many seconds (86400 = 24h)

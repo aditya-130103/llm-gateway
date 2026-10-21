@@ -1,0 +1,8 @@
+config.yaml
+.env
+.git
+docs/
+scripts/
+k8s/
+fix.md
+*.md
