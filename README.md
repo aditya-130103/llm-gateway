@@ -9,23 +9,36 @@ Built to demonstrate senior backend engineering: stateless horizontal scaling, d
 ## Architecture
 
 ```
-                        ┌──────────────────────────────────────────┐
-Client                  │              LLM Gateway (Go)             │
-POST /v1/chat/          │                                           │
-completions  ──────────→│  Auth → Rate Limit → Cache → Router      │
-Bearer <token>          │                          │                │
-                        │                   Circuit Breaker         │
-                        │                          │                │
-                        │                       Proxy               │
-                        └──────────────────────────────────────────┘
-                                   │                    │
-                                   ▼                    ▼
-                                 Redis           LLM Providers
-                           (token buckets +    (OpenAI / Anthropic
-                            vector index)           / Gemini)
+Client
+  │
+  │  POST /v1/chat/completions
+  │  Authorization: Bearer <team-token>
+  │
+  ▼
+┌─────────────────────────────────────────────────────────┐
+│                     LLM Gateway (Go)                     │
+│                                                         │
+│  1. Auth          ── invalid token ──────────→ 401      │
+│         │                                               │
+│  2. Rate Limit    ── bucket empty ───────────→ 429      │
+│         │                    │                          │
+│         │               Redis (token bucket)            │
+│         │                                               │
+│  3. Semantic Cache── cache hit ──────────────→ 200 ✓   │
+│         │ miss               │                          │
+│         │               Redis (HNSW index)              │
+│         │                                               │
+│  4. Router ── circuit breaker open? skip upstream       │
+│         ├──→ OpenAI   (primary)                        │
+│         ├──→ Anthropic (fallback 1, model swap)        │
+│         └──→ Gemini   (fallback 2, model swap)         │
+│         │                                               │
+│  5. Log + Metrics (Prometheus /metrics)                 │
+└─────────────────────────────────────────────────────────┘
+  │
+  ▼
+Response to client
 ```
-
-Each request flows through a fixed pipeline: authenticate the team, enforce the per-team rate limit, check the semantic cache, and if all miss — route to a provider with automatic fallback.
 
 ---
 

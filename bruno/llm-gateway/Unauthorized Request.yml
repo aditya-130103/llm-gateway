@@ -1,0 +1,22 @@
+info:
+  name: Unauthorized Request
+  type: http
+
+http:
+  method: POST
+  url: http://localhost:8030/v1/chat/completions
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: '{"model": "gpt-4.1-mini", "messages": [{"role": "user", "content": "hello"}]}'
+  auth:
+    type: bearer
+    token: invalid-token-should-return-401
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

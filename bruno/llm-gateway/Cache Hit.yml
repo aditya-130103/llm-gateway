@@ -1,0 +1,22 @@
+info:
+  name: Cache Hit (semantic match)
+  type: http
+
+http:
+  method: POST
+  url: http://localhost:8030/v1/chat/completions
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: '{"model": "gpt-4.1-mini", "messages": [{"role": "user", "content": "tell me the capital city of France"}]}'
+  auth:
+    type: bearer
+    token: teamA
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
