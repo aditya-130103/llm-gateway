@@ -1,0 +1,114 @@
+{
+  "uid": "llm-gateway-overview",
+  "title": "LLM Gateway — Overview",
+  "tags": ["llm-gateway"],
+  "refresh": "15s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Request Rate (req/sec)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(llmgw_requests_total[1m])) by (team)",
+          "legendFormat": "{{team}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Error Rate (%)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "100 * sum(rate(llmgw_requests_total{status_code=~\"4..|5..\"}[1m])) by (team) / sum(rate(llmgw_requests_total[1m])) by (team)",
+          "legendFormat": "{{team}} error %"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "p50 / p95 / p99 Latency",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(llmgw_request_duration_seconds_bucket[1m])) by (le, provider))",
+          "legendFormat": "p50 {{provider}}"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(llmgw_request_duration_seconds_bucket[1m])) by (le, provider))",
+          "legendFormat": "p95 {{provider}}"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(llmgw_request_duration_seconds_bucket[1m])) by (le, provider))",
+          "legendFormat": "p99 {{provider}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Total Requests by Team",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(increase(llmgw_requests_total[5m])) by (team)",
+          "legendFormat": "{{team}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Total Requests",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 16, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "expr": "sum(llmgw_requests_total)",
+          "legendFormat": "Total"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Total Tokens Used",
+      "type": "stat",
+      "gridPos": { "x": 6, "y": 16, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "expr": "sum(llmgw_tokens_total)",
+          "legendFormat": "Tokens"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Cache Hit Rate (%)",
+      "type": "stat",
+      "gridPos": { "x": 12, "y": 16, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "expr": "100 * sum(rate(llmgw_cache_hits_total[5m])) / sum(rate(llmgw_requests_total[5m]))",
+          "legendFormat": "Cache Hit %"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Active Providers",
+      "type": "stat",
+      "gridPos": { "x": 18, "y": 16, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "expr": "count(sum(rate(llmgw_requests_total{status_code=\"200\"}[5m])) by (provider) > 0)",
+          "legendFormat": "Providers"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 38
+}

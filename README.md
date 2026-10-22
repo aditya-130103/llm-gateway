@@ -2,7 +2,7 @@
 
 A production-grade reverse proxy for LLM providers, written in Go. Teams send requests through one endpoint; the gateway handles authentication, rate limiting, semantic caching, resilience, and observability.
 
-Built to demonstrate senior backend engineering: stateless horizontal scaling, distributed rate limiting, vector similarity search, and circuit-breaker-based resilience — all running on a single binary.
+Built to demonstrate senior backend engineering: stateless horizontal scaling, distributed rate limiting, vector similarity search, circuit-breaker-based resilience, and a full Grafana observability stack — all running on a single binary.
 
 ---
 
@@ -53,11 +53,12 @@ Response to client
 | **Circuit breaker** | Per-provider CLOSED/OPEN/HALF-OPEN; single probe on recovery |
 | **Structured logging** | One JSON line per request: team, requestID, provider, latency, tokens |
 | **Prometheus metrics** | requests_total, tokens_total, cache_hits_total, request_duration_seconds |
+| **Grafana dashboards** | Gateway overview, cache performance, provider health — auto-provisioned |
 | **Graceful shutdown** | SIGTERM drains in-flight requests (10s window) before exit |
 
 ---
 
-## Quick start
+## Quick start (local dev)
 
 ```bash
 # 1. Start Redis with vector search
@@ -65,7 +66,10 @@ docker run -p 6380:6379 redis/redis-stack-server:latest
 
 # 2. Configure
 cp config.example.yaml config.yaml
-# fill in API keys and team tokens
+# Fill in your LLM provider API keys
+# Set upstream base_url to: http://localhost:<provider-port>/v1
+# Generate team tokens:
+#   echo -n "your-token" | sha256sum   → paste result as key_hash
 
 # 3. Run
 go run .
@@ -77,25 +81,43 @@ curl -X POST http://localhost:8030/v1/chat/completions \
   -d '{"model": "gpt-4.1-mini", "messages": [{"role": "user", "content": "hello"}]}'
 ```
 
-Or run the full stack (gateway + Redis) in one command:
-
-```bash
-docker compose up
-```
+> **Note:** For local dev (`go run .`) use `localhost` in upstream URLs. For docker compose, change upstream URLs to `host.docker.internal` so the gateway container can reach services on your host machine.
 
 ---
 
-## Docker
+## Full stack with observability
+
+Run the complete stack — gateway, Redis, Prometheus, and Grafana — in one command:
 
 ```bash
-# Build
-docker build -t llm-gateway:latest .
-
-# Run with compose (gateway + Redis Stack)
 docker compose up
 ```
 
-Two-stage distroless build — final image is ~20 MB, runs as non-root.
+The gateway image is built automatically. Two-stage distroless build — final image is ~20 MB, runs as non-root.
+
+> **Note:** Update upstream `base_url` values in `config.yaml` from `localhost` to `host.docker.internal` before running docker compose so the gateway container can reach your LLM provider.
+
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| LLM Gateway | http://localhost:8030 | Bearer token from config |
+| Prometheus | http://localhost:9090 | — |
+| Grafana | http://localhost:3000 | admin / admin |
+
+Grafana dashboards are provisioned automatically on first boot — no manual import needed.
+
+### Dashboards
+
+**Gateway Overview** — request rate per team, error rate, p50/p95/p99 latency, total requests & tokens
+
+![Gateway Overview](docs/screenshots/dashboard-overview.png)
+
+**Cache Performance** — cache hit rate, hits vs LLM calls, tokens saved per team
+
+![Cache Performance](docs/screenshots/dashboard-cache.png)
+
+**Provider Health** — request rate per provider, error rate, fallback usage, p99 latency
+
+![Provider Health](docs/screenshots/dashboard-provider.png)
 
 ---
 
@@ -179,6 +201,19 @@ Gateway overhead is ~5ms (p95 from circuit-breaker benchmarks). The dominant lat
 
 ---
 
+## Alerting
+
+Prometheus alert rules are defined in `prometheus/alerts.yml`:
+
+| Alert | Condition |
+|-------|-----------|
+| `HighErrorRate` | Error rate > 5% for any team over 5 minutes |
+| `HighLatency` | p99 > 3s for any provider over 2 minutes |
+| `LowCacheHitRate` | Cache hit rate < 20% over 10 minutes |
+| `AllProvidersFailing` | 502 rate > 0.1/sec for 1 minute |
+
+---
+
 ## Implementation notes
 
 **Rate limiting atomicity** — the token-bucket refill and consume happen inside a single Lua script executed atomically in Redis. No race condition possible across multiple gateway replicas.
@@ -203,6 +238,7 @@ Gateway overhead is ~5ms (p95 from circuit-breaker benchmarks). The dominant lat
 | M4 | Semantic cache — embed, HNSW vector search, TTL | ✅ |
 | M5 | Observability — Prometheus metrics, /metrics endpoint | ✅ |
 | M6 | Ship — Dockerfile, docker-compose, K8s + HPA, load test | ✅ |
+| M7 | Grafana — dashboards, alerting rules, full observability stack | ✅ |
 
 ---
 

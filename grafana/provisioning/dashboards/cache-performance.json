@@ -1,0 +1,95 @@
+{
+  "uid": "llm-gateway-cache",
+  "title": "LLM Gateway — Cache Performance",
+  "tags": ["llm-gateway"],
+  "refresh": "15s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Cache Hit Rate Over Time (%)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "100 * sum(rate(llmgw_cache_hits_total[1m])) by (team) / sum(rate(llmgw_requests_total[1m])) by (team)",
+          "legendFormat": "{{team}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Cache Hits vs LLM Calls",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(llmgw_cache_hits_total[1m]))",
+          "legendFormat": "Cache Hits (no LLM call)"
+        },
+        {
+          "expr": "sum(rate(llmgw_requests_total{provider!=\"cache\"}[1m]))",
+          "legendFormat": "LLM Calls"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Tokens Saved by Cache (estimated)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(increase(llmgw_cache_hits_total[5m])) * 150",
+          "legendFormat": "Tokens saved (150 avg/req)"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Cache Hit Rate by Team",
+      "type": "bargauge",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "100 * sum(rate(llmgw_cache_hits_total[5m])) by (team) / sum(rate(llmgw_requests_total[5m])) by (team)",
+          "legendFormat": "{{team}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Total Cache Hits",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 16, "w": 8, "h": 4 },
+      "targets": [
+        { "expr": "sum(llmgw_cache_hits_total)", "legendFormat": "Hits" }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Overall Cache Hit Rate",
+      "type": "stat",
+      "gridPos": { "x": 8, "y": 16, "w": 8, "h": 4 },
+      "targets": [
+        {
+          "expr": "100 * sum(llmgw_cache_hits_total) / sum(llmgw_requests_total)",
+          "legendFormat": "Hit Rate %"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Total Tokens Saved (lifetime)",
+      "type": "stat",
+      "gridPos": { "x": 16, "y": 16, "w": 8, "h": 4 },
+      "targets": [
+        {
+          "expr": "sum(llmgw_cache_hits_total) * 150",
+          "legendFormat": "Tokens saved"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 38
+}

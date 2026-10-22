@@ -1,0 +1,46 @@
+groups:
+  - name: llm-gateway
+    rules:
+      - alert: HighErrorRate
+        expr: |
+          100 * sum(rate(llmgw_requests_total{status_code=~"4..|5.."}[5m])) by (team)
+          / sum(rate(llmgw_requests_total[5m])) by (team) > 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate for team {{ $labels.team }}"
+          description: "Error rate is {{ $value | printf \"%.1f\" }}% (threshold: 5%)"
+
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(llmgw_request_duration_seconds_bucket[5m])) by (le, provider)
+          ) > 3
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High p99 latency for provider {{ $labels.provider }}"
+          description: "p99 latency is {{ $value | printf \"%.2f\" }}s (threshold: 3s)"
+
+      - alert: LowCacheHitRate
+        expr: |
+          100 * sum(rate(llmgw_cache_hits_total[10m]))
+          / sum(rate(llmgw_requests_total[10m])) < 20
+        for: 5m
+        labels:
+          severity: info
+        annotations:
+          summary: "Cache hit rate is low"
+          description: "Cache hit rate is {{ $value | printf \"%.1f\" }}% (threshold: 20%)"
+
+      - alert: AllProvidersFailing
+        expr: |
+          sum(rate(llmgw_requests_total{status_code="502"}[2m])) > 0.1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "All upstream providers are failing"
+          description: "502 rate is {{ $value | printf \"%.2f\" }}/sec — all providers exhausted"

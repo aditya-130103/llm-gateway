@@ -6,6 +6,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o gateway .
 
 FROM gcr.io/distroless/base-debian12:nonroot
+WORKDIR /
 COPY --from=builder /app/gateway /gateway
 EXPOSE 8030
 ENTRYPOINT ["/gateway"]
